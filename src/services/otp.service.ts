@@ -3,6 +3,7 @@ import Otp from '../models/otp.model';
 import AppError from '../utils/AppError';
 import https from 'https';
 import * as emailService from './email.service';
+import logger from '../utils/logger';
 
 /**
  * Generate a secure 6-digit numerical OTP
@@ -86,12 +87,13 @@ export const saveAndSendOtp = async (
 
   await Otp.deleteMany({ email: normalizedEmail });
 
-  await Otp.create({
+  const created = await Otp.create({
     phone,
     email: normalizedEmail,
     otp,
     expiresAt,
   });
+  logger.info(`[OTP CREATED] email="${normalizedEmail}" otp="${otp}" id=${created._id}`);
 
   const accountSid = env.TWILIO_ACCOUNT_SID;
   const authToken = env.TWILIO_AUTH_TOKEN;
@@ -133,6 +135,13 @@ export const saveAndSendOtp = async (
 const REGISTRATION_WINDOW_MS = 15 * 60 * 1000;
 
 const findOtpRecord = async (normalizedEmail: string, code: string) => {
+  // Diagnostic: check what exists for this email
+  const allForEmail = await Otp.find({ email: normalizedEmail });
+  logger.info(`[OTP VERIFY] email="${normalizedEmail}" code="${code}" | DB records: ${allForEmail.length}`);
+  if (allForEmail.length > 0) {
+    allForEmail.forEach((r, i) => logger.info(`  [${i}] storedOtp="${r.otp}" match=${r.otp === code} expired=${new Date() > r.expiresAt}`));
+  }
+
   const record = await Otp.findOne({ email: normalizedEmail, otp: code });
 
   if (!record) {

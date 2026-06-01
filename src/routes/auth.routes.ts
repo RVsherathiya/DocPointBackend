@@ -14,6 +14,7 @@ router.get('/verify-email', authController.verifyEmail);
 router.get('/me', protect, authController.getMe);
 router.post('/complete-profile', protect, authController.completeProfile);
 router.post('/upload-documents', protect, authController.uploadDocuments);
+router.get('/doctors', protect, authController.getDoctors);
 router.post('/forgot-password', validateRequest(forgotPasswordSchema), authController.forgotPassword);
 router.get('/reset-password', authController.resetPasswordPage);
 router.post('/reset-password-submit', authController.resetPasswordSubmit);

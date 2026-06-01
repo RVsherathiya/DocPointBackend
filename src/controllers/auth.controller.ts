@@ -6,6 +6,7 @@ import { localizeMessage } from '../utils/localizeMessage';
 import User from '../models/user.model';
 import Doctor from '../models/doctor.model';
 import AppError from '../utils/AppError';
+import * as cloudinaryService from '../services/cloudinary.service';
 
 
 export const register = catchAsync(async (req: Request, res: Response) => {
@@ -292,8 +293,13 @@ export const completeProfile = catchAsync(async (req: AuthenticatedRequest, res:
     throw new AppError('Doctor not found', 404);
   }
 
+  let profilePhotoUrl = profilePhoto;
+  if (profilePhoto && profilePhoto.startsWith('data:')) {
+    profilePhotoUrl = await cloudinaryService.uploadBase64Image(profilePhoto, 'docpoint/doctors');
+  }
+
   doctor.doctorProfile = {
-    profilePhoto,
+    profilePhoto: profilePhotoUrl,
     gender,
     dob,
     address,
@@ -329,10 +335,25 @@ export const uploadDocuments = catchAsync(async (req: AuthenticatedRequest, res:
     throw new AppError('Doctor not found', 404);
   }
 
+  let medicalLicenseUrl = medicalLicense;
+  if (medicalLicense && medicalLicense.startsWith('data:')) {
+    medicalLicenseUrl = await cloudinaryService.uploadBase64Image(medicalLicense, 'docpoint/documents');
+  }
+
+  let degreeCertificateUrl = degreeCertificate;
+  if (degreeCertificate && degreeCertificate.startsWith('data:')) {
+    degreeCertificateUrl = await cloudinaryService.uploadBase64Image(degreeCertificate, 'docpoint/documents');
+  }
+
+  let governmentIdUrl = governmentId;
+  if (governmentId && governmentId.startsWith('data:')) {
+    governmentIdUrl = await cloudinaryService.uploadBase64Image(governmentId, 'docpoint/documents');
+  }
+
   doctor.verificationDocuments = {
-    medicalLicense,
-    degreeCertificate,
-    governmentId,
+    medicalLicense: medicalLicenseUrl,
+    degreeCertificate: degreeCertificateUrl,
+    governmentId: governmentIdUrl,
   };
   doctor.verificationStatus = 'pending_approval';
   await doctor.save();
@@ -348,3 +369,158 @@ export const uploadDocuments = catchAsync(async (req: AuthenticatedRequest, res:
     },
   });
 });
+
+export const getDoctors = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const { search, specialty, gender, sort, page = 1, limit = 20 } = req.query;
+
+  const query: any = {
+    status: 'active',
+    verificationStatus: 'approved',
+  };
+
+  if (search) {
+    const searchRegex = new RegExp(search as string, 'i');
+    query.$or = [
+      { name: searchRegex },
+      { 'doctorProfile.clinicName': searchRegex },
+      { 'doctorProfile.specialization': searchRegex },
+      { 'doctorProfile.qualification': searchRegex },
+    ];
+  }
+
+  if (specialty && specialty !== 'All') {
+    query['doctorProfile.specialization'] = new RegExp(`^${specialty}$`, 'i');
+  }
+
+  if (gender && gender !== 'any') {
+    query['doctorProfile.gender'] = gender;
+  }
+
+  const pageNum = Number(page);
+  const limitNum = Number(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  let sortOption: any = { createdAt: -1 };
+  if (sort === 'low_high') {
+    sortOption = { 'doctorProfile.consultationFee': 1 };
+  } else if (sort === 'high_low') {
+    sortOption = { 'doctorProfile.consultationFee': -1 };
+  }
+
+  let total = await Doctor.countDocuments(query);
+  let doctorsList = await Doctor.find(query)
+    .sort(sortOption)
+    .skip(skip)
+    .limit(limitNum);
+
+  // Auto-seed mock doctors if database has none
+  if (total === 0 && !search && (!specialty || specialty === 'All') && (!gender || gender === 'any')) {
+    const mockDoctors = [
+      {
+        name: 'Dr. Raj Patel',
+        email: 'raj.patel@docpoint.com',
+        phone: '+919999999991',
+        isEmailVerified: true,
+        role: 'doctor' as const,
+        status: 'active' as const,
+        verificationStatus: 'approved' as const,
+        isProfileCompleted: true,
+        doctorProfile: {
+          specialization: 'Cardiologist',
+          qualification: 'MBBS, MD, FACC',
+          experience: 12,
+          consultationFee: 500,
+          clinicName: 'Apollo Clinic',
+          clinicAddress: '123 Apollo Circle, Ahmedabad',
+          gender: 'male',
+          dob: '1984-05-15',
+        },
+      },
+      {
+        name: 'Dr. Sneha Sharma',
+        email: 'sneha.sharma@docpoint.com',
+        phone: '+919999999992',
+        isEmailVerified: true,
+        role: 'doctor' as const,
+        status: 'active' as const,
+        verificationStatus: 'approved' as const,
+        isProfileCompleted: true,
+        doctorProfile: {
+          specialization: 'Pediatrician',
+          qualification: 'MBBS, DCH, MD',
+          experience: 8,
+          consultationFee: 400,
+          clinicName: 'Kids Care Clinic',
+          clinicAddress: '456 Kinder Rd, Ahmedabad',
+          gender: 'female',
+          dob: '1990-08-22',
+        },
+      },
+      {
+        name: 'Dr. Rohan Gupta',
+        email: 'rohan.gupta@docpoint.com',
+        phone: '+919999999993',
+        isEmailVerified: true,
+        role: 'doctor' as const,
+        status: 'active' as const,
+        verificationStatus: 'approved' as const,
+        isProfileCompleted: true,
+        doctorProfile: {
+          specialization: 'Dermatologist',
+          qualification: 'MBBS, DVD, MD',
+          experience: 10,
+          consultationFee: 450,
+          clinicName: 'Skin Care Clinic',
+          clinicAddress: '789 Derma Way, Ahmedabad',
+          gender: 'male',
+          dob: '1988-12-05',
+        },
+      },
+    ];
+
+    for (const doc of mockDoctors) {
+      await Doctor.create(doc);
+    }
+
+    total = await Doctor.countDocuments(query);
+    doctorsList = await Doctor.find(query)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limitNum);
+  }
+
+  const formattedDoctors = doctorsList.map((doc) => {
+    const docObj = doc.toObject();
+    return {
+      id: docObj._id.toString(),
+      name: docObj.name,
+      email: docObj.email,
+      phone: docObj.phone,
+      verificationStatus: docObj.verificationStatus,
+      specializationKey: `home.categories.${(docObj.doctorProfile?.specialization || 'cardiologist').toLowerCase().replace(/\s+/g, '_')}`,
+      qualification: docObj.doctorProfile?.qualification || 'MBBS',
+      experience: docObj.doctorProfile?.experience || 5,
+      fee: docObj.doctorProfile?.consultationFee || 200,
+      clinicName: docObj.doctorProfile?.clinicName || 'DocPoint Clinic',
+      clinicAddress: docObj.doctorProfile?.clinicAddress || 'Clinic Address',
+      profilePhoto: docObj.doctorProfile?.profilePhoto || null,
+      gender: docObj.doctorProfile?.gender || 'male',
+      rating: 4.8,
+      reviewsCount: 120,
+      distance: 2.5,
+      status: 'available',
+      types: ['video', 'clinic', 'chat'],
+    };
+  });
+
+  res.status(200).json({
+    status: 'success',
+    total,
+    page: pageNum,
+    pages: Math.ceil(total / limitNum),
+    data: {
+      doctors: formattedDoctors,
+    },
+  });
+});
+
