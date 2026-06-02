@@ -7,6 +7,7 @@ import AppError from '../utils/AppError';
 import * as otpService from './otp.service';
 import * as firebaseService from './firebase.service';
 import * as emailService from './email.service';
+import * as cloudinaryService from './cloudinary.service';
 
 export const signToken = (id: string): string => {
   return jwt.sign({ id }, env.JWT_SECRET, {
@@ -21,6 +22,7 @@ interface RegisterInput {
   password?: string;
   idToken?: string;
   role?: 'patient' | 'doctor' | 'admin';
+  image?: string;
 }
 
 interface LoginInput {
@@ -128,6 +130,11 @@ export const registerUser = async (input: RegisterInput) => {
       user: doctorResponse,
     };
   } else {
+    let imageUrl: string | undefined;
+    if (input.image && input.image.startsWith('data:')) {
+      imageUrl = await cloudinaryService.uploadBase64Image(input.image, 'docpoint/profiles');
+    }
+
     const newUser = await User.create({
       name,
       email: normalizedEmail,
@@ -137,6 +144,7 @@ export const registerUser = async (input: RegisterInput) => {
       isEmailVerified: !!idToken,
       emailVerificationToken: idToken ? undefined : verificationToken,
       emailVerificationExpires: idToken ? undefined : verificationExpires,
+      image: imageUrl,
     });
 
     if (!idToken) {

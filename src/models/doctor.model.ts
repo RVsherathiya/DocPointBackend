@@ -27,6 +27,11 @@ export interface IDoctor extends Document {
     clinicName?: string;
     clinicAddress?: string;
     consultationFee?: number;
+    consultationTypes?: {
+      video?: { active: boolean; fee: number };
+      clinic?: { active: boolean; fee: number };
+      chat?: { active: boolean; fee: number };
+    };
   };
   verificationDocuments?: {
     medicalLicense?: string;
@@ -119,6 +124,20 @@ const doctorSchema: Schema<IDoctor> = new Schema(
       clinicName: { type: String },
       clinicAddress: { type: String },
       consultationFee: { type: Number },
+      consultationTypes: {
+        video: {
+          active: { type: Boolean, default: false },
+          fee: { type: Number, default: 0 }
+        },
+        clinic: {
+          active: { type: Boolean, default: false },
+          fee: { type: Number, default: 0 }
+        },
+        chat: {
+          active: { type: Boolean, default: false },
+          fee: { type: Number, default: 0 }
+        }
+      }
     },
     verificationDocuments: {
       medicalLicense: { type: String },

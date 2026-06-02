@@ -112,3 +112,33 @@ export const resetPasswordOtpSchema = z.object({
       .max(32, 'Password must be at most 32 characters long'),
   }),
 });
+
+export const addFamilyMemberSchema = z.object({
+  body: z.object({
+    name: z.string({
+      required_error: 'Name is required',
+    })
+      .trim()
+      .min(2, 'Name must be at least 2 characters')
+      .max(50, 'Name must be at most 50 characters'),
+    phone: z.string({
+      required_error: 'Phone number is required',
+    })
+      .trim()
+      .min(7, 'Phone number must be at least 7 digits')
+      .max(20, 'Phone number must be at most 20 digits'),
+    dob: z.string({
+      required_error: 'Date of Birth is required',
+    })
+      .trim(),
+    gender: z.string({
+      required_error: 'Gender is required',
+    })
+      .trim(),
+    relation: z.string({
+      required_error: 'Relation is required',
+    })
+      .trim(),
+    image: z.string().optional(),
+  }),
+});

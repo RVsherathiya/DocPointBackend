@@ -6,7 +6,7 @@ import { z } from 'zod';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const envSchema = z.object({
-  PORT: z.string().transform((val) => parseInt(val, 10)).default('5001'),
+  PORT: z.union([z.string(), z.number()]).transform((val) => typeof val === 'string' ? parseInt(val, 10) : val).default(5001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
   JWT_SECRET: z.string().min(8, 'JWT_SECRET must be at least 8 characters long'),

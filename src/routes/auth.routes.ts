@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller';
 import validateRequest from '../middlewares/validation.middleware';
-import { registerSchema, loginSchema, sendOtpSchema, verifyOtpSchema, forgotPasswordSchema, resetPasswordOtpSchema } from '../validations/auth.validation';
+import { registerSchema, loginSchema, sendOtpSchema, verifyOtpSchema, forgotPasswordSchema, resetPasswordOtpSchema, addFamilyMemberSchema } from '../validations/auth.validation';
 import { protect } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -20,5 +20,10 @@ router.get('/reset-password', authController.resetPasswordPage);
 router.post('/reset-password-submit', authController.resetPasswordSubmit);
 router.post('/reset-password-otp', validateRequest(resetPasswordOtpSchema), authController.resetPasswordOtp);
 router.post('/seed-admin', authController.seedAdmin);
+
+// Family Members Routes
+router.get('/family-members', protect, authController.getFamilyMembers);
+router.post('/family-members', protect, validateRequest(addFamilyMemberSchema), authController.addFamilyMember);
+router.delete('/family-members/:id', protect, authController.deleteFamilyMember);
 
 export default router;

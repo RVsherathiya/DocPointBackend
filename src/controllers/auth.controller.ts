@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import * as authService from '../services/auth.service';
 import catchAsync from '../utils/catchAsync';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
@@ -286,6 +287,7 @@ export const completeProfile = catchAsync(async (req: AuthenticatedRequest, res:
     clinicName,
     clinicAddress,
     consultationFee,
+    consultationTypes,
   } = req.body;
 
   const doctor = await Doctor.findById(doctorId);
@@ -297,6 +299,21 @@ export const completeProfile = catchAsync(async (req: AuthenticatedRequest, res:
   if (profilePhoto && profilePhoto.startsWith('data:')) {
     profilePhotoUrl = await cloudinaryService.uploadBase64Image(profilePhoto, 'docpoint/doctors');
   }
+
+  const parsedConsultationTypes = consultationTypes ? {
+    video: {
+      active: !!consultationTypes.video?.active,
+      fee: consultationTypes.video?.fee ? Number(consultationTypes.video.fee) : 0,
+    },
+    clinic: {
+      active: !!consultationTypes.clinic?.active,
+      fee: consultationTypes.clinic?.fee ? Number(consultationTypes.clinic.fee) : 0,
+    },
+    chat: {
+      active: !!consultationTypes.chat?.active,
+      fee: consultationTypes.chat?.fee ? Number(consultationTypes.chat.fee) : 0,
+    },
+  } : undefined;
 
   doctor.doctorProfile = {
     profilePhoto: profilePhotoUrl,
@@ -310,6 +327,7 @@ export const completeProfile = catchAsync(async (req: AuthenticatedRequest, res:
     clinicName,
     clinicAddress,
     consultationFee: consultationFee ? Number(consultationFee) : undefined,
+    consultationTypes: parsedConsultationTypes,
   };
   doctor.isProfileCompleted = true;
   await doctor.save();
@@ -520,6 +538,93 @@ export const getDoctors = catchAsync(async (req: AuthenticatedRequest, res: Resp
     pages: Math.ceil(total / limitNum),
     data: {
       doctors: formattedDoctors,
+    },
+  });
+});
+
+export const getFamilyMembers = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: {
+      familyMembers: user.familyMembers || [],
+    },
+  });
+});
+
+export const addFamilyMember = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const { name, phone, dob, gender, relation, image } = req.body;
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Generate initials
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2);
+
+  if (!user.familyMembers) {
+    user.familyMembers = [];
+  }
+
+  let imageUrl = image;
+  if (image && image.startsWith('data:')) {
+    imageUrl = await cloudinaryService.uploadBase64Image(image, 'docpoint/family');
+  }
+
+  user.familyMembers.push({
+    _id: new mongoose.Types.ObjectId(),
+    name,
+    phone,
+    dob,
+    gender,
+    relation,
+    initials: initials || name[0]?.toUpperCase() || 'F',
+    image: imageUrl,
+  });
+
+  await user.save();
+
+  res.status(201).json({
+    status: 'success',
+    message: 'Family member added successfully',
+    data: {
+      familyMembers: user.familyMembers,
+    },
+  });
+});
+
+export const deleteFamilyMember = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!user.familyMembers) {
+    user.familyMembers = [];
+  }
+
+  user.familyMembers = user.familyMembers.filter(
+    (member: any) => member._id.toString() !== id
+  );
+
+  await user.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: 'Family member deleted successfully',
+    data: {
+      familyMembers: user.familyMembers,
     },
   });
 });

@@ -14,6 +14,7 @@ export interface IUser extends Document {
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   isProfileCompleted: boolean;
+  image?: string;
   verificationStatus: 'pending_upload' | 'pending_approval' | 'approved' | 'rejected';
   doctorProfile?: {
     profilePhoto?: string;
@@ -33,6 +34,16 @@ export interface IUser extends Document {
     degreeCertificate?: string;
     governmentId?: string;
   };
+  familyMembers?: Array<{
+    _id: any;
+    name: string;
+    phone: string;
+    dob: string;
+    gender: string;
+    relation: string;
+    initials?: string;
+    image?: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -98,6 +109,18 @@ const userSchema: Schema<IUser> = new Schema(
       type: Date,
       select: false,
     },
+    familyMembers: [
+      {
+        name: { type: String, required: true },
+        phone: { type: String, required: true },
+        dob: { type: String, required: true },
+        gender: { type: String, required: true },
+        relation: { type: String, required: true },
+        initials: { type: String },
+        image: { type: String },
+      },
+    ],
+    image: { type: String },
   },
   {
     timestamps: true,
