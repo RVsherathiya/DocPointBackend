@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Professional TypeScript Express backend for DocPoint",
   "main": "dist/server.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "clean": "rimraf dist",
