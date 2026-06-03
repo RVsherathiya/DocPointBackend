@@ -18,8 +18,9 @@ const PORT = env.PORT || 5001;
 
 // Start Server
 const server = app.listen(PORT, () => {
+  const baseUrl = (env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
   logger.info(`🚀 Server running in ${env.NODE_ENV} mode on port ${PORT}`);
-  logger.info(`🔗 Server URL: https://docpointbackend-1.onrender.com/api`);
+  logger.info(`🔗 Server URL: ${baseUrl}/api`);
 
   // ─── Admin Credentials Banner ────────────────────────────────────────
   console.log('\n╔══════════════════════════════════════╗');
@@ -30,7 +31,7 @@ const server = app.listen(PORT, () => {
   console.log(`║  Phone    : ${(env.ADMIN_PHONE    || '+919876543210').padEnd(23)}║`);
   console.log(`║  Password : ${(env.ADMIN_PASSWORD || 'Admin@1234').padEnd(23)}║`);
   console.log('╠══════════════════════════════════════╣');
-  console.log('║  URL: https://docpointbackend-1.onrender.com ║');
+  console.log(`║  URL: ${baseUrl.padEnd(31)}║`);
   console.log('╚══════════════════════════════════════╝\n');
   // ─────────────────────────────────────────────────────────────────────
   // Seed initial doctors/data on startup if db is empty
