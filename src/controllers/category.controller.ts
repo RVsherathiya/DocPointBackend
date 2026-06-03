@@ -7,10 +7,19 @@ import * as cloudinaryService from '../services/cloudinary.service';
 
 export const getAllCategories = catchAsync(async (req: Request, res: Response) => {
   const filter: any = {};
-  if (req.query.all !== 'true') {
+  const isAdmin = req.query.all === 'true';
+
+  if (!isAdmin) {
     filter.status = 'active';
   }
-  const categories = await Category.find(filter).sort({ name: 1 });
+
+  let query = Category.find(filter).sort({ name: 1 });
+
+  if (!isAdmin) {
+    query = query.limit(5);
+  }
+
+  const categories = await query;
 
   // Dynamically count the number of active doctors under each category
   const categoriesWithCount = await Promise.all(
