@@ -6,13 +6,14 @@
   "engines": {
     "node": "20.x"
   },
+  
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "clean": "rimraf dist",
+    "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
-    "start": "node dist/server.js",
-    "lint": "echo \"No linting configured yet\""
-  },
+    "start": "node dist/server.js"
+  
+},
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
