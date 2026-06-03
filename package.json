@@ -6,14 +6,12 @@
   "engines": {
     "node": "20.x"
   },
-  
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
     "start": "node dist/server.js"
-  
-},
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
@@ -39,7 +37,7 @@
     "@types/nodemailer": "^8.0.0",
     "rimraf": "^5.0.5",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.6.3"
   },
   "private": true
 }
