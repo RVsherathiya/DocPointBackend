@@ -34,13 +34,13 @@ app.use('/api', routes);
 
 // Serve Admin Dashboard
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
-app.get('/admin/*', (req: Request, res: Response) => {
+app.get('/admin/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../public/admin/index.html'));
 });
 
 // Serve Doctor Portal
 app.use('/doctor', express.static(path.join(__dirname, '../public/doctor')));
-app.get('/doctor/*', (req: Request, res: Response) => {
+app.get('/doctor/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../public/doctor/index.html'));
 });
 
