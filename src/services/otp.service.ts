@@ -100,20 +100,18 @@ export const saveAndSendOtp = async (
   const fromNumber = env.TWILIO_PHONE_NUMBER;
   const smtpConfigured = emailService.isSmtpConfigured();
 
+  let emailSent = false;
+
   if (smtpConfigured) {
     try {
-      await emailService.sendOtpEmail(normalizedEmail, otp, recipientName);
+      emailSent = await emailService.sendOtpEmail(normalizedEmail, otp, recipientName);
     } catch (err) {
-      if (env.NODE_ENV !== 'development') {
-        throw err;
-      }
-      console.warn(
-        '[SMTP] OTP email failed — code will be shown in the app. Fix SMTP_PASS in .env for real email.',
-        err
-      );
+      logger.error(`[SMTP Error] Failed to send OTP email to ${normalizedEmail}:`, err);
+      emailSent = false;
     }
   } else {
-    await emailService.sendOtpEmail(normalizedEmail, otp, recipientName);
+    // If SMTP is not configured, sendOtpEmail logs simulation and returns false
+    emailSent = await emailService.sendOtpEmail(normalizedEmail, otp, recipientName);
   }
 
   if (accountSid && authToken && fromNumber) {
@@ -124,8 +122,10 @@ export const saveAndSendOtp = async (
     }
   }
 
-  // In development always return OTP for on-screen display (email may not arrive).
-  if (env.NODE_ENV === 'development') {
+  // If email was not sent successfully (either because SMTP failed or was unconfigured),
+  // OR if we are in development mode, return the OTP code as devCode/otpOnScreen
+  // so the doctor/patient portal can display it on-screen and prevent user blocking.
+  if (!emailSent || env.NODE_ENV === 'development') {
     return { devCode: otp, otpOnScreen: true };
   }
 

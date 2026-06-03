@@ -287,6 +287,9 @@ export const forgotPassword = async (
             user: env.SMTP_USER?.trim(),
             pass: env.SMTP_PASS?.replace(/\s+/g, ''),
           },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
         });
         await transporter.sendMail({
           from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,

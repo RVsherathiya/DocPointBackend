@@ -86,6 +86,9 @@ const createTransporter = () => {
       user: SMTP_USER.trim(),
       pass: normalizeSmtpPassword(SMTP_PASS),
     },
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
     ...(port === 587 ? { requireTLS: true } : {}),
   });
 };
