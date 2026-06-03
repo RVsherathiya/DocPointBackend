@@ -12,7 +12,6 @@ router.use(protect);
 router.use(restrictTo('admin'));
 
 router.post('/', categoryController.createCategory);
-router.post('/seed', categoryController.seedCategories);
 router.patch('/:id', categoryController.updateCategory);
 router.delete('/:id', categoryController.deleteCategory);
 
