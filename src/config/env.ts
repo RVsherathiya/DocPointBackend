@@ -41,7 +41,13 @@ const parseEnv = () => {
     process.exit(1);
   }
 
-  return result.data;
+  const data = result.data;
+  // Automatically point to localhost in development mode
+  if (data.NODE_ENV === 'development') {
+    data.APP_URL = `http://localhost:${data.PORT}`;
+  }
+
+  return data;
 };
 
 export const env = parseEnv();
