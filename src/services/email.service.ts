@@ -67,7 +67,7 @@ const buildOtpEmailHtml = (otp: string, recipientName?: string): string => {
 </html>`;
 };
 
-const normalizeSmtpPassword = (pass: string): string => pass.replace(/\s+/g, '');
+const normalizeSmtpPassword = (pass: string): string => pass.replace(/['"]/g, '').replace(/\s+/g, '');
 
 const createTransporter = () => {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = env;
@@ -220,3 +220,93 @@ export const sendAccountVerificationEmail = async (
     throw new AppError('email_send_failed', 500);
   }
 };
+
+const buildForgotPasswordEmailHtml = (
+  resetUrl: string,
+  recipientName?: string
+): string => {
+  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset your DocPoint password</title>
+</head>
+<body style="margin:0;padding:0;background-color:${BRAND.background};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:${BRAND.background};padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:480px;background-color:${BRAND.white};border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(10,12,16,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,${BRAND.primary} 0%,${BRAND.secondary} 100%);padding:28px 32px;text-align:center;">
+              <p style="margin:0;font-size:26px;font-weight:700;color:${BRAND.white};">DocPoint</p>
+              <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.9);">Reset Password</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 12px;font-size:16px;color:${BRAND.text};">${greeting}</p>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:${BRAND.muted};">
+                You requested to reset your password. Click the button below to reset it. This link is valid for 1 hour.
+              </p>
+              <div style="text-align:center;margin:0 0 24px;">
+                <a href="${resetUrl}" style="display:inline-block;padding:14px 28px;background-color:${BRAND.primary};color:${BRAND.white};text-decoration:none;border-radius:12px;font-size:16px;font-weight:600;">
+                  Reset Password
+                </a>
+              </div>
+              <p style="margin:0;font-size:13px;line-height:1.5;color:${BRAND.muted};">
+                If you did not request a password reset, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 32px;background-color:${BRAND.background};border-top:1px solid #E5E5EA;">
+              <p style="margin:0;font-size:12px;color:${BRAND.muted};text-align:center;">
+                © ${new Date().getFullYear()} DocPoint
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+export const sendPasswordResetEmail = async (
+  toEmail: string,
+  resetUrl: string,
+  recipientName?: string
+): Promise<void> => {
+  const transporter = createTransporter();
+
+  if (!transporter) {
+    console.log('\n----------------------------------------');
+    console.log('[PASSWORD RESET SIMULATION]');
+    console.log(`To: ${toEmail}`);
+    console.log(`Reset URL: ${resetUrl}`);
+    console.log('----------------------------------------\n');
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,
+      to: toEmail,
+      subject: 'Reset your DocPoint password',
+      text: `You requested a password reset. Reset your password using this link: ${resetUrl}`,
+      html: buildForgotPasswordEmailHtml(resetUrl, recipientName),
+    });
+    console.log(`[Password Reset Email Sent] To: ${toEmail}`);
+  } catch (error: any) {
+    console.error('[SMTP Password Reset Email Error]', error);
+    if (error?.code === 'EAUTH') {
+      throw new AppError('smtp_auth_failed', 500);
+    }
+    throw new AppError('email_send_failed', 500);
+  }
+};
+

@@ -122,6 +122,16 @@ export const saveAndSendOtp = async (
     }
   }
 
+  if (env.NODE_ENV === 'production') {
+    if (!smtpConfigured) {
+      throw new AppError('email_not_configured', 500);
+    }
+    if (!emailSent) {
+      throw new AppError('email_send_failed', 500);
+    }
+    return {};
+  }
+
   // If email was not sent successfully (either because SMTP failed or was unconfigured),
   // OR if we are in development mode, return the OTP code as devCode/otpOnScreen
   // so the doctor/patient portal can display it on-screen and prevent user blocking.

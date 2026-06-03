@@ -274,40 +274,9 @@ export const forgotPassword = async (
     const baseUrl = (env.APP_URL || `http://localhost:${env.PORT || 5001}`).replace(/\/$/, '');
     const resetUrl = `${baseUrl}/api/auth/reset-password?token=${resetToken}`;
     
-    const smtpConfigured = emailService.isSmtpConfigured();
-
-    if (smtpConfigured) {
+    if (emailService.isSmtpConfigured()) {
       try {
-        const nodemailer = require('nodemailer');
-        const transporter = nodemailer.createTransport({
-          host: env.SMTP_HOST,
-          port: env.SMTP_PORT || 587,
-          secure: (env.SMTP_PORT || 587) === 465,
-          auth: {
-            user: env.SMTP_USER?.trim(),
-            pass: env.SMTP_PASS?.replace(/\s+/g, ''),
-          },
-          connectionTimeout: 5000,
-          greetingTimeout: 5000,
-          socketTimeout: 5000,
-        });
-        await transporter.sendMail({
-          from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,
-          to: normalizedEmail,
-          subject: 'Reset your DocPoint password',
-          text: `You requested a password reset. Reset your password using this link: ${resetUrl}`,
-          html: `
-            <div style="font-family: sans-serif; padding: 24px; max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-              <h2 style="color: #0A84FF; text-align: center;">DocPoint</h2>
-              <p>Hi ${user.name || 'there'},</p>
-              <p>You requested to reset your password. Click the button below to reset it. This link is valid for 1 hour.</p>
-              <div style="text-align: center; margin: 24px 0;">
-                <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #0A84FF; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600;">Reset Password</a>
-              </div>
-              <p style="color: #8E8E93; font-size: 12px;">If you did not request a password reset, you can safely ignore this email.</p>
-            </div>
-          `,
-        });
+        await emailService.sendPasswordResetEmail(normalizedEmail, resetUrl, user.name);
       } catch (err) {
         console.warn('Failed to send reset email via SMTP:', err);
       }
