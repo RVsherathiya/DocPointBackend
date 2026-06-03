@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import env from '../config/env';
 import AppError from '../utils/AppError';
 
@@ -12,6 +12,19 @@ const BRAND = {
   background: '#F2F2F7',
   white: '#FFFFFF',
 };
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+export const isSendGridConfigured = (): boolean =>
+  !!(env.SENDGRID_API_KEY && env.SENDGRID_FROM_EMAIL);
+
+const initSendGrid = (): boolean => {
+  if (!isSendGridConfigured()) return false;
+  sgMail.setApiKey(env.SENDGRID_API_KEY!);
+  return true;
+};
+
+// ─── Email HTML Builders ─────────────────────────────────────────────────────
 
 const buildOtpEmailHtml = (otp: string, recipientName?: string): string => {
   const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
@@ -65,71 +78,6 @@ const buildOtpEmailHtml = (otp: string, recipientName?: string): string => {
   </table>
 </body>
 </html>`;
-};
-
-const normalizeSmtpPassword = (pass: string): string => pass.replace(/['"]/g, '').replace(/\s+/g, '');
-
-const createTransporter = () => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = env;
-
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    return null;
-  }
-
-  const port = SMTP_PORT || 587;
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: {
-      user: SMTP_USER.trim(),
-      pass: normalizeSmtpPassword(SMTP_PASS),
-    },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 5000,
-    ...(port === 587 ? { requireTLS: true } : {}),
-  });
-};
-
-export const sendOtpEmail = async (
-  toEmail: string,
-  otp: string,
-  recipientName?: string
-): Promise<boolean> => {
-  const transporter = createTransporter();
-
-  if (!transporter) {
-    console.log('\n----------------------------------------');
-    console.log('[OTP EMAIL SIMULATION]');
-    console.log(`To: ${toEmail}`);
-    console.log(`OTP Code: ${otp}`);
-    console.log('----------------------------------------\n');
-    return false;
-  }
-
-  try {
-    await transporter.sendMail({
-      from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,
-      to: toEmail,
-      subject: 'Your DocPoint verification code',
-      text: `Your DocPoint verification code is: ${otp}. It expires in 5 minutes.`,
-      html: buildOtpEmailHtml(otp, recipientName),
-    });
-    console.log(`[OTP Email Sent] To: ${toEmail}`);
-    return true;
-  } catch (error: any) {
-    console.error('[SMTP Error]', error);
-    if (error?.code === 'EAUTH') {
-      throw new AppError('smtp_auth_failed', 500);
-    }
-    throw new AppError('email_send_failed', 500);
-  }
-};
-
-export const isSmtpConfigured = (): boolean => {
-  return !!(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS);
 };
 
 const buildVerifyAccountEmailHtml = (
@@ -187,40 +135,6 @@ const buildVerifyAccountEmailHtml = (
 </html>`;
 };
 
-export const sendAccountVerificationEmail = async (
-  toEmail: string,
-  verifyUrl: string,
-  recipientName?: string
-): Promise<void> => {
-  const transporter = createTransporter();
-
-  if (!transporter) {
-    console.log('\n----------------------------------------');
-    console.log('[EMAIL VERIFICATION SIMULATION]');
-    console.log(`To: ${toEmail}`);
-    console.log(`Verify URL: ${verifyUrl}`);
-    console.log('----------------------------------------\n');
-    return;
-  }
-
-  try {
-    await transporter.sendMail({
-      from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,
-      to: toEmail,
-      subject: 'Verify your DocPoint account',
-      text: `Welcome to DocPoint! Verify your account: ${verifyUrl}`,
-      html: buildVerifyAccountEmailHtml(verifyUrl, recipientName),
-    });
-    console.log(`[Verification Email Sent] To: ${toEmail}`);
-  } catch (error: any) {
-    console.error('[SMTP Verification Email Error]', error);
-    if (error?.code === 'EAUTH') {
-      throw new AppError('smtp_auth_failed', 500);
-    }
-    throw new AppError('email_send_failed', 500);
-  }
-};
-
 const buildForgotPasswordEmailHtml = (
   resetUrl: string,
   recipientName?: string
@@ -276,16 +190,87 @@ const buildForgotPasswordEmailHtml = (
 </html>`;
 };
 
+// ─── Send Functions ──────────────────────────────────────────────────────────
+
+export const sendOtpEmail = async (
+  toEmail: string,
+  otp: string,
+  recipientName?: string
+): Promise<boolean> => {
+  if (!initSendGrid()) {
+    console.log('\n----------------------------------------');
+    console.log('[OTP EMAIL SIMULATION - SendGrid not configured]');
+    console.log(`To: ${toEmail}`);
+    console.log(`OTP Code: ${otp}`);
+    console.log('----------------------------------------\n');
+    return false;
+  }
+
+  try {
+    await sgMail.send({
+      from: {
+        email: env.SENDGRID_FROM_EMAIL!,
+        name: 'DocPoint',
+      },
+      to: toEmail,
+      subject: 'Your DocPoint verification code',
+      text: `Your DocPoint verification code is: ${otp}. It expires in 5 minutes.`,
+      html: buildOtpEmailHtml(otp, recipientName),
+    });
+    console.log(`[OTP Email Sent via SendGrid] To: ${toEmail}`);
+    return true;
+  } catch (error: any) {
+    console.error('[SendGrid OTP Error]', error?.response?.body || error);
+    if (error?.code === 401 || error?.response?.statusCode === 401) {
+      throw new AppError('smtp_auth_failed', 500);
+    }
+    throw new AppError('email_send_failed', 500);
+  }
+};
+
+export const sendAccountVerificationEmail = async (
+  toEmail: string,
+  verifyUrl: string,
+  recipientName?: string
+): Promise<void> => {
+  if (!initSendGrid()) {
+    console.log('\n----------------------------------------');
+    console.log('[EMAIL VERIFICATION SIMULATION - SendGrid not configured]');
+    console.log(`To: ${toEmail}`);
+    console.log(`Verify URL: ${verifyUrl}`);
+    console.log('----------------------------------------\n');
+    return;
+  }
+
+  try {
+    await sgMail.send({
+      from: {
+        email: env.SENDGRID_FROM_EMAIL!,
+        name: 'DocPoint',
+      },
+      to: toEmail,
+      subject: 'Verify your DocPoint account',
+      text: `Welcome to DocPoint! Verify your account: ${verifyUrl}`,
+      html: buildVerifyAccountEmailHtml(verifyUrl, recipientName),
+    });
+    console.log(`[Verification Email Sent via SendGrid] To: ${toEmail}`);
+  } catch (error: any) {
+    console.error('[SendGrid Verification Email Error]', error?.response?.body || error);
+    if (error?.code === 401 || error?.response?.statusCode === 401) {
+      throw new AppError('smtp_auth_failed', 500);
+    }
+    throw new AppError('email_send_failed', 500);
+  }
+};
+
 export const sendPasswordResetEmail = async (
   toEmail: string,
   resetUrl: string,
   recipientName?: string
 ): Promise<void> => {
-  const transporter = createTransporter();
-
-  if (!transporter) {
+  if (!initSendGrid()) {
     console.log('\n----------------------------------------');
-    console.log('[PASSWORD RESET SIMULATION]');
+    console.log('[PASSWORD RESET SIMULATION - SendGrid not configured]');
     console.log(`To: ${toEmail}`);
     console.log(`Reset URL: ${resetUrl}`);
     console.log('----------------------------------------\n');
@@ -293,20 +278,25 @@ export const sendPasswordResetEmail = async (
   }
 
   try {
-    await transporter.sendMail({
-      from: `"DocPoint" <${env.SMTP_FROM || env.SMTP_USER}>`,
+    await sgMail.send({
+      from: {
+        email: env.SENDGRID_FROM_EMAIL!,
+        name: 'DocPoint',
+      },
       to: toEmail,
       subject: 'Reset your DocPoint password',
       text: `You requested a password reset. Reset your password using this link: ${resetUrl}`,
       html: buildForgotPasswordEmailHtml(resetUrl, recipientName),
     });
-    console.log(`[Password Reset Email Sent] To: ${toEmail}`);
+    console.log(`[Password Reset Email Sent via SendGrid] To: ${toEmail}`);
   } catch (error: any) {
-    console.error('[SMTP Password Reset Email Error]', error);
-    if (error?.code === 'EAUTH') {
+    console.error('[SendGrid Password Reset Email Error]', error?.response?.body || error);
+    if (error?.code === 401 || error?.response?.statusCode === 401) {
       throw new AppError('smtp_auth_failed', 500);
     }
     throw new AppError('email_send_failed', 500);
   }
 };
 
+// Keep for backward compatibility — now checks SendGrid instead of SMTP
+export const isSmtpConfigured = (): boolean => isSendGridConfigured();

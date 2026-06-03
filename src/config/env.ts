@@ -17,6 +17,10 @@ const envSchema = z.object({
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
+  // SendGrid (replaces SMTP — works on Render free tier via HTTPS)
+  SENDGRID_API_KEY: z.string().optional(),
+  SENDGRID_FROM_EMAIL: z.string().optional(),
+  // Legacy SMTP (kept for reference, no longer used)
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().transform((val) => parseInt(val, 10)).optional(),
   SMTP_USER: z.string().optional(),
